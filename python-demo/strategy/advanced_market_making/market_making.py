@@ -55,11 +55,11 @@ class PerpMarketMaker(MarketMaker):
         self.pub_key = self.priv_key.to_public_key()
         self.address = self.pub_key.to_address().init_num_seq(self.network.lcd_endpoint)
         self.subaccount_id = self.address.get_subaccount_id(index=0)
-        logging.info("Subaccount ID: %s" % self.subaccount_id)
+        
 
         self.fee_recipient = "inj1wrg096y69grgf8yg6tqxnh0tdwx4x47rsj8rs3"
         self.update_interval = avellaneda_stoikov_configs.getint("update_interval", 60)
-        logging.info("update interval: %d" % self.update_interval)
+        
 
         ############################
         self.position = PositionDerivative()
@@ -83,9 +83,9 @@ class PerpMarketMaker(MarketMaker):
         self.bid_price = 0
 
         self.n_orders = avellaneda_stoikov_configs.getint("n_orders", 5)
-        logging.info("n_orders: %s" % self.n_orders)
+        
         self.leverage = avellaneda_stoikov_configs.getfloat("leverage", 1)
-        logging.info("leverage: %s" % self.leverage)
+        
 
         # Avellaneda Stoikov model parameters
         self.gamma = avellaneda_stoikov_configs.getfloat("gamma", 0.7)
@@ -119,7 +119,7 @@ class PerpMarketMaker(MarketMaker):
         self.first_order_delta = avellaneda_stoikov_configs.getfloat(
             "first_order_delta", 0.05
         )
-        logging.info(
+        
             "first_order_delta: %s, last_order_delta: %s :"
             % (self.first_order_delta, self.last_order_delta)
         )
@@ -141,17 +141,17 @@ class PerpMarketMaker(MarketMaker):
         ) * (
             1 - self.estimated_fee_ratio
         )  # fraction of total asset
-        logging.info("bid_total_asset_allocation: %s" % self.bid_total_asset_allocation)
+        
         self.ask_total_asset_allocation = avellaneda_stoikov_configs.getfloat(
             "ask_total_asset_allocation", 0.11
         ) * (
             1 - self.estimated_fee_ratio
         )  # fraction of total asset
-        logging.info("ask_total_asset_allocation: %s" % self.ask_total_asset_allocation)
+        
 
         self.price_delta_ratio = self._compute_price_delta()
         self.tob_asset_allocation = self._compute_tob_asset_allocation()
-        logging.info("tob_asset_allocation: %s", self.tob_asset_allocation)
+        
         self.asset_deltas = self._compute_asset_delta()
 
         self.current_order_size = 0.0001
@@ -497,7 +497,7 @@ class PerpMarketMaker(MarketMaker):
             else:
                 while len(self.orders["bids"]) > self.n_orders - 1:
                     bid_order = self.orders["bids"].pop(0)
-                    logging.info(f"bid order hash: {bid_order.order_hash}")
+                    
                     derivative_orders_to_cancel.append(
                         self.composer.OrderData(
                             market_id=self.market.market_id,
@@ -520,7 +520,7 @@ class PerpMarketMaker(MarketMaker):
             else:
                 while len(self.orders["asks"]) > self.n_orders - 1:
                     ask_order = self.orders["asks"].pop(0)
-                    logging.info(f"ask order hash: {ask_order.order_hash}")
+                    
                     derivative_orders_to_cancel.append(
                         self.composer.OrderData(
                             market_id=self.market.market_id,
@@ -557,12 +557,12 @@ class PerpMarketMaker(MarketMaker):
             ask_quantity,
         ) = self._compute_order_price_quantity(i, bid_price, ask_price)
 
-        logging.info(
+        
             f"batch {i} bid_price: {bid_price}, ask_price: {ask_price}, bid_quantity: {bid_quantity}, ask_quantity: {ask_quantity}"
         )
 
         ts = time_ns()
-        logging.info(
+        
             f"position direction: {self.position.direction}, residual_reduce_only_quantity: {self.position.residual_reduce_only_quantity}"
         )
 
@@ -600,7 +600,7 @@ class PerpMarketMaker(MarketMaker):
                     ),
                 )
                 self.orders["reduce_only_orders"].add(reduce_only_order)
-                logging.info(
+                
                     f"reduce_only_order {reduce_only_order.msg}"
                 )
             elif self.position.direction == "short":
@@ -626,7 +626,7 @@ class PerpMarketMaker(MarketMaker):
                     ),
                 )
                 self.orders["reduce_only_orders"].add(reduce_only_order)
-                logging.info(
+                
                     f"reduce_only_order {reduce_only_order.msg}"
                 )
 
@@ -675,7 +675,7 @@ class PerpMarketMaker(MarketMaker):
         )
         if (len(self.orders["reduce_only_orders"]) == 0) or (i != 0):
             return [bid_order.msg, ask_order.msg]
-        logging.info(
+        
             f"n reduce_only_orders to replace {i}: {len(self.orders['reduce_only_orders'])}"
         )
         return [bid_order.msg, ask_order.msg] + [
@@ -684,60 +684,60 @@ class PerpMarketMaker(MarketMaker):
 
     async def send_replace_orders(self, i):
         # cancel order by hash
-        logging.info(f"bid price {self.bid_price}, ask price: {self.ask_price}")
-        logging.info("replace batch %d", i)
+        
+        
         old_orders = self.build_cancel_orders_by_hash_msg(i)
-        logging.info("old orders: %s", len(old_orders))
+        
 
-        logging.info("send replace orders")
+        
         new_orders = self.build_place_order_by_price_msg(i)
-        logging.info("new orders: %s", len(new_orders))
+        
 
-        logging.info("cancel orders %s", len(old_orders))
+        
 
         if len(old_orders) != 0:
-            logging.info("replace layer %d th orders", i)
+            
             msg = self.composer.MsgBatchUpdateOrders(
                 sender=self.address.to_acc_bech32(),
                 derivative_orders_to_create=new_orders,
                 derivative_orders_to_cancel=old_orders,
             )
             res = await self.send_message(msg, idx=i)
-            logging.info("finished replace layer %d th send message %s\n" % (i, res))
+            
         else:
-            logging.info("place layer %d orders", i)
+            
             msg = self.composer.MsgBatchUpdateOrders(
                 sender=self.address.to_acc_bech32(),
                 derivative_orders_to_create=new_orders,
             )
             res = await self.send_message(msg, new_only=True, idx=i)
-            logging.info("finished replace layer %d th send message %s\n" % (i, res))
+            
         return res
 
     async def replace_orders(self):
-        logging.info("starting replace orders")
+        
 
         if len(self.orders["bids"]) != 0 and len(self.orders["asks"]) != 0:
-            logging.info("some orders to replace")
+            
             for i in range(self.n_orders):
                 await self.send_replace_orders(i)
-                logging.info(f"!!!! bid orders {self.orders['bids']}")
-                logging.info(f"!!!! ask orders {self.orders['asks']}")
+                
+                
                 # await sleep(600)
-            logging.info("finished replace orders")
+            
         else:
-            logging.info("no orders to replace")
+            
             await self.onetime_get_open_orders()
             for i in range(self.n_orders):
                 await self.send_replace_orders(i)
-            logging.info("finished replace orders")
+            
         await self.onetime_get_open_orders()
-        logging.info("get order hashes")
-        logging.info(f"bids: {self.orders['bids']}")
-        logging.info(f"asks: {self.orders['asks']}")
+        
+        
+        
 
     def first_batch(self):
-        logging.info("start sending first batches")
+        
         self._build_first_batch_orders()
         logging.debug(f"{self.orders['bids']}")
         logging.debug(f"{self.orders['asks']}")
@@ -749,7 +749,7 @@ class PerpMarketMaker(MarketMaker):
         ]
         if len(self.orders["reduce_only_orders"]):
             orders += [order.msg for order in self.orders["reduce_only_orders"]]
-            logging.info(f" sending first batches {len(orders)}")
+            
 
         logging.debug(f"orders: {orders}")
 
@@ -839,8 +839,8 @@ class PerpMarketMaker(MarketMaker):
         logging.debug("success: %s sim_res %s" % (success, sim_res))
 
         if not success:
-            logging.info(f"success: {success}")
-            logging.info(f"failed in simulate {sim_res}")
+            
+            
             self.address.init_num_seq(self.network.lcd_endpoint)
             raise Exception(f"failed in simulate {sim_res}")
 
@@ -862,22 +862,22 @@ class PerpMarketMaker(MarketMaker):
                         i + len(self.orders["bids"]) + len(self.orders["asks"])
                     ]
                 for order in self.orders["bids"]:
-                    logging.info(
+                    
                         f"new only: bid order to place, price: {order.price:6.2f}, quantity: {order.quantity:6.4f}, hash: {order.order_hash}"
                     )
                 for order in self.orders["asks"]:
-                    logging.info(
+                    
                         f"new only: ask order to place, price: {order.price:6.2f}, quantity: {order.quantity:6.4f}, hash: {order.order_hash}"
                     )
                 if len(self.orders["reduce_only_orders"]) > 0:
-                    logging.info(
+                    
                         f"new only: reduce only order to place, price: {self.orders['reduce_only_orders'][-1].price:6.2f}, quantity: {self.orders['reduce_only_orders'][-1].quantity:6.4f}, hash: {self.orders['reduce_only_orders'][-1].order_hash}"
                     )
 
-                logging.info("finished unpacking new only response")
+                
 
             else:
-                logging.info("unpacking replace response:")
+                
                 self.orders["bids"][-1].order_hash = sim_res_msg[
                     0
                 ].derivative_order_hashes[0]
@@ -897,10 +897,10 @@ class PerpMarketMaker(MarketMaker):
                         0
                     ].derivative_order_hashes[2]
 
-                    logging.info(
+                    
                         f"reduce only order to place, price: {self.orders['reduce_only_orders'][-1].price:6.2f}, quantity: {self.orders['reduce_only_orders'][-1].quantity:6.4f}, hash: {self.orders['reduce_only_orders'][-1].order_hash}"
                     )
-                logging.info("finished unpacking replace response")
+                
 
 
         # build tx
@@ -953,7 +953,7 @@ class PerpMarketMaker(MarketMaker):
 
         # self.last_trade_price = round(self.bid_price + self.ask_price / 2, 2)
         while True:
-            logging.info(f"start trade stream, {self.subaccount_id}")
+            
             trades = await self.client.stream_derivative_trades(
                 market_id=self.market.market_id, subaccount_id=self.subaccount_id
             )
@@ -1056,7 +1056,7 @@ class PerpMarketMaker(MarketMaker):
 
     async def orderbook_stream(self):
         while True:
-            logging.info("start orderbook stream")
+            
             orderbooks = await self.client.stream_derivative_orderbook(
                 market_id=self.market.market_id
             )
@@ -1089,7 +1089,7 @@ class PerpMarketMaker(MarketMaker):
     async def orders_stream(self):
         # TODO this is not needed
         while True:
-            logging.info("start orders stream")
+            
             orders = await self.client.stream_derivative_orders(
                 market_id=self.market.market_id, subaccount_id=self.subaccount_id
             )
@@ -1098,7 +1098,7 @@ class PerpMarketMaker(MarketMaker):
 
     async def position_stream(self):
         while True:
-            logging.info("start position stream")
+            
             positions = await self.client.stream_derivative_positions(
                 market_id=self.market.market_id, subaccount_id=self.subaccount_id
             )
@@ -1120,14 +1120,14 @@ class PerpMarketMaker(MarketMaker):
                             ),
                             timestamp=int(position.timestamp),
                         )
-                        logging.info("finished update position")
+                        
                         if (
                             log(self.position.entry_price)
                             - log(self.position.mark_price)
                             > 0.10
                         ):
                             self.margin_event.set()
-                        logging.info("after add margin: %s", self.position.margin)
+                        
                     elif position.position.direction == "short":
                         logging.debug("short position: %s", position)
                         self.position.update(
@@ -1144,16 +1144,16 @@ class PerpMarketMaker(MarketMaker):
                             ),
                             timestamp=int(position.timestamp),
                         )
-                        logging.info("finished update position")
+                        
                         if (
                             log(self.position.mark_price)
                             - log(self.position.entry_price)
                             > 0.10
                         ):
                             self.margin_event.set()
-                        logging.info("after add margin: %s", self.position.margin)
+                        
                     else:
-                        logging.info("no position")
+                        
                 else:
                     self.position.update(
                         direction="",
@@ -1167,14 +1167,14 @@ class PerpMarketMaker(MarketMaker):
                         ),
                         timestamp=int(position.timestamp),
                     )
-                    logging.info("after add margin: %s", self.position.margin)
-                logging.info("end of position stream")
+                    
+                
 
     async def compare_and_replace_orders(self):
         await sleep(60)
         while True:
             await self.price_feed.wait()
-            logging.info("got signal ")
+            
             # TODO avellaneda_stoikov_model
             mid_price = 0.5 * (self.tob_ask_price + self.tob_bid_price)
             self.ask_price, self.bid_price = avellaneda_stoikov_model(
@@ -1197,7 +1197,7 @@ class PerpMarketMaker(MarketMaker):
                     min(self.bid_price, self.oracle_price, self.last_trade_price),
                     4,
                 )
-                logging.info(
+                
                     "all price feeds are good if: updated bid price: %s, ask price: %s\n",
                     self.bid_price,
                     self.ask_price,
@@ -1213,7 +1213,7 @@ class PerpMarketMaker(MarketMaker):
                     4,
                 )
 
-                logging.info(
+                
                     "all price feeds are good else: updated bid price: %s, ask price: %s\n",
                     self.bid_price,
                     self.ask_price,
@@ -1232,14 +1232,14 @@ class PerpMarketMaker(MarketMaker):
                     f"2 * (self.ask_price - self.bid_price) / (self.ask_price + self.bid_price) = {2 * (self.ask_price - self.bid_price) / (self.ask_price + self.bid_price)}>0.5"
                 )
                 # get the latest orders
-                logging.info("good price start get_open_orders")
+                
                 await self.onetime_get_open_orders()
-                logging.info("good price finish get_open_orders")
+                
 
                 # prices are good, and start update orders
                 self.replace_event.set()
                 await self.replace_orders()
-                logging.info("good price finished replace orders\n")
+                
                 self.replace_event.clear()
                 self.price_feed.clear()
             else:
@@ -1251,21 +1251,21 @@ class PerpMarketMaker(MarketMaker):
                     f"2 * (self.ask_price - self.bid_price) / (self.ask_price + self.bid_price) = {2 * (self.ask_price - self.bid_price) / (self.ask_price + self.bid_price)}>0.5"
                 )
                 # get the latest orders
-                logging.info("bad price start get_open_orders")
+                
                 await self.onetime_get_open_orders()
-                logging.info("bad price finish get_open_orders")
+                
 
                 # prices are bad, and start update orders
                 self.replace_event.set()
                 await self.replace_orders()
-                logging.info("bad price finished replace orders\n")
+                
                 self.replace_event.clear()
                 self.price_feed.clear()
 
-            logging.info("end of compare and replace orders")
+            
             await self.onetime_get_open_orders()
-            logging.info("getting new open orders to check if we have missing orders")
-            logging.info(
+            
+            
                 f"len of bids: {len(self.orders['bids'])}, len of asks: {len(self.orders['asks'])}"
             )
             if (
@@ -1276,12 +1276,12 @@ class PerpMarketMaker(MarketMaker):
             ):
                 self.price_feed.set()
 
-            logging.info(
+            
                 f"finished new open orders, price feed event set: {self.price_feed.is_set()}"
             )
 
     async def get_oracle_price(self):
-        logging.info("getting oracle  price")
+        
         await sleep(self.update_interval)
         while True:
             oracle_prices = await self.client.stream_oracle_prices(
@@ -1294,7 +1294,7 @@ class PerpMarketMaker(MarketMaker):
                 if float(price.price) > 0:
                     new_price = float(price.price)  # FIXME
                     # FIXME change this to human readable format
-                    logging.info(
+                    
                         f"updated oracle  price new price: {new_price}, old price: {self.oracle_price} {datetime.fromtimestamp(int(price.timestamp/1000))}"
                     )
                     if abs(new_price - self.oracle_price) > 0.01:
@@ -1352,7 +1352,7 @@ class PerpMarketMaker(MarketMaker):
                 balance.balance.deposit.total_balance, self.market.market_denom
             ),
         )
-        logging.info(
+        
             "available balance: %f, total balance: %f"
             % (self.balance.available_balance, self.balance.total_balance),
         )
@@ -1363,7 +1363,7 @@ class PerpMarketMaker(MarketMaker):
         )
         self.initial_margin_ratio = float(market.market.initial_margin_ratio)
         self.estimated_fee_ratio = float(market.market.taker_fee_rate)
-        logging.info(
+        
             f"market info: initial margin ratio: {self.initial_margin_ratio}, max fee ratio: {self.estimated_fee_ratio}"
         )
 
@@ -1408,7 +1408,7 @@ class PerpMarketMaker(MarketMaker):
             subaccount_id=self.subaccount_id,
         )
 
-        logging.info(f"{len(orders.orders)} open orders")
+        
         if orders.orders:
             for order in orders.orders:
                 if (order.order_side == "buy") and (order.is_reduce_only):
@@ -1464,7 +1464,7 @@ class PerpMarketMaker(MarketMaker):
                         f"order state: {type(order.is_reduce_only)} {order.is_reduce_only}"
                     )
 
-            logging.info(
+            
                 f"before padding: {len(self.orders['bids'])} bids, {len(self.orders['asks'])} asks, {len(self.orders['reduce_only_orders'])} reduce only orders"
             )
             while len(self.orders["bids"]) < self.n_orders:
@@ -1490,14 +1490,14 @@ class PerpMarketMaker(MarketMaker):
                     )
                 )
             for order in self.orders["bids"]:
-                logging.info(
+                
                     f"bid price:{order.price:.4f}, quantity:{order.quantity:.4f}, ts:{order.timestamp}, hash:{order.order_hash}"
                 )
             for order in self.orders["asks"]:
-                logging.info(
+                
                     f"ask price:{order.price:.4f}, quantity:{order.quantity:.4f}, ts:{order.timestamp}, hash:{order.order_hash}"
                 )
-            logging.info(
+            
                 f"after padding: {len(self.orders['bids'])} bids, {len(self.orders['asks'])} asks"
             )
 
@@ -1516,17 +1516,17 @@ class PerpMarketMaker(MarketMaker):
         await self.onetime_get_open_orders()
 
         if len(self.orders["bids"]) != 0:
-            logging.info(
+            
                 f"have open orders:{len(self.orders['bids'])} bid orders, {len(self.orders['asks'])} ask orders"
             )
             for i in range(self.n_orders):
                 await self.send_replace_orders(i)
-                logging.info(f"!!!! bid orders: {self.orders['bids']}")
-                logging.info(f"!!!! ask orders: {self.orders['asks']}")
+                
+                
         else:
-            logging.info("no open orders")
+            
             res = await self.send_first_batch()
-            logging.info(f"res {res}")
+            
 
     ## place
     async def cancel_by_market_id(self):
@@ -1541,7 +1541,7 @@ class PerpMarketMaker(MarketMaker):
         # prepare tx msg
         while True:
             await self.margin_event.wait()
-            logging.info("got increase_margin event")
+            
             msg = self.composer.MsgIncreasePositionMargin(
                 sender=self.address.to_acc_bech32(),
                 market_id=self.market.market_id,
@@ -1551,17 +1551,17 @@ class PerpMarketMaker(MarketMaker):
             )
             await self.send_message(msg, skip_unpack_msg=True)
             self.margin_event.clear()
-            logging.info("finished increase_margin event")
+            
 
     async def close(self):
-        logging.info("closing all open channels")
+        
         await self.client.close_chain_channel()
         await self.client.close_exchange_channel()
-        logging.info("closed all open channels")
+        
 
     async def market_making_strategy(self):
         await self.client.sync_timeout_height()
-        logging.info(f"start sending first batch of orders")
+        
         # update orderbook to start algo
         await self.onetime_orderbook()
         await self.onetime_balance()
@@ -1570,12 +1570,12 @@ class PerpMarketMaker(MarketMaker):
         await self.onetime_position()
 
         await sleep(10)
-        logging.info(
+        
             f"open position: entry_price: {self.position.entry_price}, net_quantity: {self.position.net_quantity}"
         )
         await self.onetime_get_and_replace_orders()
 
-        logging.info(f"sent first batch of orders\n")
+        
 
         tasks = (
             self.compare_and_replace_orders,
@@ -1591,7 +1591,7 @@ class PerpMarketMaker(MarketMaker):
         exception_aware_task.add_done_callback(_handle_task_result)
 
         await exception_aware_task
-        logging.info("finished tasks")
+        
 
     async def _exception_aware_scheduler(self, *task_definitions):
         tasks = {
@@ -1599,7 +1599,7 @@ class PerpMarketMaker(MarketMaker):
         }
         logging.debug(f"Created tasks: {tasks}")
         while tasks:
-            logging.info(f"Starting tasks")
+            
             done, pending = await wait(tasks.keys(), return_when=FIRST_EXCEPTION)
             for task in done:
                 if task.exception() is not None:
@@ -1613,13 +1613,13 @@ class PerpMarketMaker(MarketMaker):
                         )
                         logging.error("Task exited with exception:")
                         task.print_stack()
-                        logging.info(f"Rescheduling the task: {task.get_name()}\n")
+                        
                         coro = tasks.pop(task)
                         tasks[create_task(coro())] = coro
                     elif "Socket closed" in msg:
                         logging.error("Task exited with exception:")
                         task.print_stack()
-                        logging.info(f"Rescheduling the task: {task.get_name()}\n")
+                        
                         coro = tasks.pop(task)
                         tasks[create_task(coro())] = coro
                     else:
